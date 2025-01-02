@@ -1,0 +1,117 @@
+.container {
+    padding: 20px;
+    max-width: 1200px;
+    margin: auto;
+}
+
+h2 {
+    margin-bottom: 20px;
+    color: #333;
+    font-family: 'Arial', sans-serif;
+}
+
+.search-container {
+    margin-bottom: 20px;
+}
+
+input[type="text"] {
+    padding: 10px;
+    width: 300px;
+    margin-right: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 16px;
+    transition: border-color 0.3s;
+}
+
+input[type="text"]:focus {
+    border-color: #2196F3;
+    outline: none;
+}
+
+button {
+    padding: 10px 20px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s;
+}
+
+button:hover {
+    background-color: #45a049;
+}
+
+.loading {
+    text-align: center;
+    color: #2196F3;
+    font-weight: bold;
+}
+
+.error {
+    color: red;
+    text-align: center;
+    font-weight: bold;
+}
+
+.header {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    margin-top: 20px;
+}
+
+.header h2 {
+    margin: 0;
+}
+
+.header p {
+    margin: 5px 0;
+}
+
+.chart-container {
+    max-height: 400px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    margin-bottom: 20px;
+    white-space: nowrap;
+}
+
+canvas {
+    width: 1000px;
+    height: 400px;
+}
+
+.summary-window, .news-window {
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    padding: 15px;
+    background-color: #f0f8ff;
+    margin-bottom: 20px;
+}
+
+h3 {
+    margin-top: 0;
+}
+
+.time-frame-buttons {
+    margin: 20px 0;
+}
+
+.time-frame-buttons button {
+    margin-right: 10px;
+    padding: 10px 15px;
+    background-color: #2196F3;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.time-frame-buttons button:hover {
+    background-color: #1976D2;
+} 
