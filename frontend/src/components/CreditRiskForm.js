@@ -4,15 +4,15 @@ import './CreditRiskForm.css'; // Import the CSS file for styling
 function CreditRiskForm() {
   const questions = [
     { name: "age", question: "What is your age?", type: "number" },
-    { name: "owns_house", question: "Do you own a house? (1 = Yes, 0 = No)", type: "number" },
-    { name: "owns_car", question: "Do you own a car? (1 = Yes, 0 = No)", type: "number" },
+    { name: "owns_house", question: "Do you own a house? (1 = Yes, 0 = No)", type: "binary" },
+    { name: "owns_car", question: "Do you own a car? (1 = Yes, 0 = No)", type: "binary" },
     { name: "credit_score", question: "What is your credit score?", type: "number" },
     { name: "net_yearly_income", question: "What is your net yearly income?", type: "number" },
     { name: "credit_limit", question: "What is your total credit limit?", type: "number" },
     { name: "credit_limit_used", question: "What percentage of your credit limit have you used?", type: "number" },
     { name: "default_in_last_6months", question: "How many times have you defaulted in the last 6 months?", type: "number" },
-    { name: "gender", question: "What is your gender? (1 = Male, 0 = Female)", type: "number" },
-    { name: "migrant_worker", question: "Are you a migrant worker? (1 = Yes, 0 = No)", type: "number" },
+    { name: "gender", question: "What is your gender?", type: "binary" },
+    { name: "migrant_worker", question: "Are you a migrant worker? (1 = Yes, 0 = No)", type: "binary" },
     { name: "no_of_children", question: "How many children do you have?", type: "number" },
     { name: "no_of_days_employed", question: "How many days have you been employed?", type: "number" },
   ];
@@ -40,7 +40,16 @@ function CreditRiskForm() {
 
   const handleChange = (e) => {
     const { value } = e.target;
-    setResponses({ ...responses, [questions[currentQuestionIndex].name]: value });
+    // Convert "Yes" to 1 and "No" to 0 for backend
+    const numericValue = value === "Yes" ? 1 : value === "No" ? 0 : value === "Male" ? 1 : value === "Female" ? 0 : value;
+
+    // Validate numeric inputs to prevent negative values
+    if (questions[currentQuestionIndex].type === "number" && value < 0) {
+      alert("Please enter a non-negative value.");
+      return;
+    }
+
+    setResponses({ ...responses, [questions[currentQuestionIndex].name]: numericValue });
   };
 
   const handleOccupationChange = (e) => {
@@ -56,7 +65,7 @@ function CreditRiskForm() {
   };
 
   const handleNext = () => {
-    if (currentQuestionIndex < questions.length) {
+    if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
     } else {
       handleSubmit();
@@ -83,7 +92,7 @@ function CreditRiskForm() {
 
   return (
     <div className="credit-risk-form full-screen">
-      <h1>Credit Risk </h1>
+      <h1>Credit Risk</h1>
       {result ? (
         <div className="result">
           <h2>Prediction Results</h2>
@@ -117,12 +126,34 @@ function CreditRiskForm() {
             <>
               <h2>Question {currentQuestionIndex + 1} of {questions.length}</h2>
               <p>{questions[currentQuestionIndex].question}</p>
-              <input
-                className="form-input"
-                type={questions[currentQuestionIndex].type}
-                value={responses[questions[currentQuestionIndex].name] || ""}
-                onChange={handleChange}
-              />
+              {questions[currentQuestionIndex].name === "gender" ? (
+                <select
+                  className="form-input"
+                  onChange={handleChange}
+                  defaultValue=""
+                >
+                  <option value="" disabled>Select Male or Female</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
+              ) : questions[currentQuestionIndex].type === "binary" ? (
+                <select
+                  className="form-input"
+                  onChange={handleChange}
+                  defaultValue=""
+                >
+                  <option value="" disabled>Select Yes or No</option>
+                  <option value="Yes">Yes</option>
+                  <option value="No">No</option>
+                </select>
+              ) : (
+                <input
+                  className="form-input"
+                  type={questions[currentQuestionIndex].type}
+                  value={responses[questions[currentQuestionIndex].name] || ""}
+                  onChange={handleChange}
+                />
+              )}
               <button className="next-button" onClick={handleNext}>
                 Next
               </button>
