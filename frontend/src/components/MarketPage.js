@@ -1,7 +1,8 @@
 import React, { useState } from "react";
-import axios from "axios"; // Import axios
-import './MarketPage.css'; // Ensure you have the necessary CSS for styling
-import Chart from 'chart.js/auto'; // Ensure you have chart.js installed
+import axios from "axios";
+import './MarketPage.css';
+import Chart from 'chart.js/auto';
+import ReactMarkdown from "react-markdown"; // Import ReactMarkdown for rendering Markdown
 
 const MarketPage = () => {
     const [companySymbol, setCompanySymbol] = useState("");
@@ -9,7 +10,7 @@ const MarketPage = () => {
     const [loading, setLoading] = useState(false);
     const [stockData, setStockData] = useState(null);
     const [stockChart, setStockChart] = useState(null);
-    const [timeFrame, setTimeFrame] = useState("1Y"); // Default time frame
+    const [timeFrame, setTimeFrame] = useState("1Y");
 
     const searchStock = async () => {
         setLoading(true);
@@ -42,14 +43,13 @@ const MarketPage = () => {
         const ctx = document.getElementById('stockChart').getContext('2d');
         const sortedData = historicalData.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-        // Filter data based on selected time frame
         const filteredData = sortedData.filter(item => {
             const date = new Date(item.date);
             const now = new Date();
             if (timeFrame === "1Y") return date >= new Date(now.setFullYear(now.getFullYear() - 1));
             if (timeFrame === "3Y") return date >= new Date(now.setFullYear(now.getFullYear() - 3));
             if (timeFrame === "5Y") return date >= new Date(now.setFullYear(now.getFullYear() - 5));
-            return true; // All time
+            return true;
         });
 
         const newChart = new Chart(ctx, {
@@ -87,7 +87,7 @@ const MarketPage = () => {
     const handleTimeFrameChange = (frame) => {
         setTimeFrame(frame);
         if (stockData) {
-            updateChart(stockData.historical_data); // Update chart with new time frame
+            updateChart(stockData.historical_data);
         }
     };
 
@@ -111,7 +111,6 @@ const MarketPage = () => {
                 <div id="stockHeader" className="header">
                     <h2>Results for {companySymbol} ({stockData.stock_symbol})</h2>
                     <p><strong>Current Price:</strong> ${stockData.current_price}</p>
-                    <p><strong>Suggestion:</strong> {stockData.suggestion}</p>
                 </div>
             )}
 
@@ -131,7 +130,7 @@ const MarketPage = () => {
             {stockData && (
                 <div className="summary-window">
                     <h3>Summary</h3>
-                    <p>{stockData.summary}</p>
+                    <ReactMarkdown>{stockData.gemini_summary || "No summary available."}</ReactMarkdown>
                 </div>
             )}
 
@@ -153,4 +152,4 @@ const MarketPage = () => {
     );
 };
 
-export default MarketPage; 
+export default MarketPage;

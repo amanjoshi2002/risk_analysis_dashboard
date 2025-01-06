@@ -1,12 +1,14 @@
 import React, { useState } from "react";
+import ReactMarkdown from "react-markdown"; // For rendering Markdown
 import './CreditRiskForm.css'; // Import the CSS file for styling
 
 function CreditRiskForm() {
   const questions = [
+    { name: "agency", question: "Which credit agency are you using?", type: "agency" },
+    { name: "credit_score", question: "What is your credit score?", type: "number" },
     { name: "age", question: "What is your age?", type: "number" },
     { name: "owns_house", question: "Do you own a house? (1 = Yes, 0 = No)", type: "binary" },
     { name: "owns_car", question: "Do you own a car? (1 = Yes, 0 = No)", type: "binary" },
-    { name: "credit_score", question: "What is your credit score?", type: "number" },
     { name: "net_yearly_income", question: "What is your net yearly income?", type: "number" },
     { name: "credit_limit", question: "What is your total credit limit?", type: "number" },
     { name: "credit_limit_used", question: "What percentage of your credit limit have you used?", type: "number" },
@@ -17,59 +19,42 @@ function CreditRiskForm() {
     { name: "no_of_days_employed", question: "How many days have you been employed?", type: "number" },
   ];
 
-  const occupations = [
-    "Accountants",
-    "Cleaning_staff",
-    "Cooking_staff",
-    "Drivers",
-    "HR_staff",
-    "IT_staff",
-    "Laborers",
-    "Managers",
-    "Medicine_staff",
-    "Private_service_staff",
-    "Sales_staff",
-    "Secretaries",
-    "Security_staff",
-    "Waiters_barmen_staff",
-  ];
-
   const [responses, setResponses] = useState({});
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [result, setResult] = useState(null);
+  const [selectedField, setSelectedField] = useState(null);
 
   const handleChange = (e) => {
     const { value } = e.target;
-    // Convert "Yes" to 1 and "No" to 0 for backend
-    const numericValue = value === "Yes" ? 1 : value === "No" ? 0 : value === "Male" ? 1 : value === "Female" ? 0 : value;
+    let numericValue;
 
-    // Validate numeric inputs to prevent negative values
-    if (questions[currentQuestionIndex].type === "number" && value < 0) {
-      alert("Please enter a non-negative value.");
-      return;
+    if (questions[currentQuestionIndex].name === "gender") {
+      numericValue = value === "Male" ? 1 : value === "Female" ? 0 : null;
+    } else {
+      numericValue =
+        value === "Yes"
+          ? 1
+          : value === "No"
+          ? 0
+          : questions[currentQuestionIndex].type === "number"
+          ? parseFloat(value) || 0
+          : value;
     }
 
     setResponses({ ...responses, [questions[currentQuestionIndex].name]: numericValue });
   };
 
-  const handleOccupationChange = (e) => {
-    const selectedOccupation = e.target.value;
-    const occupationResponses = {};
-
-    // Mark selected occupation as 1 and others as 0
-    occupations.forEach((occupation) => {
-      occupationResponses[`occupation_${occupation}`] = occupation === selectedOccupation ? 1 : 0;
-    });
-
-    setResponses({ ...responses, ...occupationResponses });
-  };
-
   const handleNext = () => {
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
+      setSelectedField(null);
     } else {
       handleSubmit();
     }
+  };
+
+  const handleFieldSelect = (fieldName) => {
+    setSelectedField(fieldName);
   };
 
   const handleSubmit = async () => {
@@ -82,7 +67,12 @@ function CreditRiskForm() {
         body: JSON.stringify(responses),
       });
       const data = await response.json();
-      console.log("Server response:", data);
+
+      if (data.error) {
+        alert(data.error);
+        return;
+      }
+
       setResult(data);
     } catch (error) {
       console.error("Error fetching prediction:", error);
@@ -99,25 +89,26 @@ function CreditRiskForm() {
           <div className="predictions-grid">
             <h3>Predictions</h3>
             <div className="predictions-container">
-              {Object.entries(result.predictions).map(([model, value]) => (
-                <div className="prediction-card" key={model}>
-                  <h4>{model.replace("_", " ")}</h4>
-                  <p>{value}</p>
-                </div>
-              ))}
+              {result.predictions &&
+                Object.entries(result.predictions).map(([model, value]) => (
+                  <div className="prediction-card" key={model}>
+                    <h4>{model.replace("_", " ")}</h4>
+                    <p>{value}</p>
+                  </div>
+                ))}
             </div>
           </div>
           <div className="average-score-window">
             <h3>Average Score</h3>
-            <div>{result.average_score}</div>
+            <div>{result.average_score || "N/A"}</div>
           </div>
           <div className="risk-category-window">
             <h3>Risk Category</h3>
-            <div>{result.risk_category}</div>
+            <div>{result.risk_category || "N/A"}</div>
           </div>
           <div className="summary-window">
             <h3>Summary</h3>
-            <div dangerouslySetInnerHTML={{ __html: result.summary }} />
+            <ReactMarkdown>{result.summary || "No summary available."}</ReactMarkdown>
           </div>
         </div>
       ) : (
@@ -126,56 +117,50 @@ function CreditRiskForm() {
             <>
               <h2>Question {currentQuestionIndex + 1} of {questions.length}</h2>
               <p>{questions[currentQuestionIndex].question}</p>
-              {questions[currentQuestionIndex].name === "gender" ? (
+              {questions[currentQuestionIndex].name === "agency" ? (
                 <select
-                  className="form-input"
-                  onChange={handleChange}
+                  className={`form-input ${selectedField === "agency" ? "selected" : ""}`}
+                  onChange={(e) => { handleChange(e); handleFieldSelect("agency"); }}
                   defaultValue=""
                 >
-                  <option value="" disabled>Select Male or Female</option>
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
+                  <option value="" disabled>Select a credit agency</option>
+                  <option value="Experian">Experian</option>
+                  <option value="Equifax">Equifax</option>
+                  <option value="TransUnion">TransUnion</option>
                 </select>
-              ) : questions[currentQuestionIndex].type === "binary" ? (
+              ) : questions[currentQuestionIndex].type === "binary" && questions[currentQuestionIndex].name !== "gender" ? (
                 <select
-                  className="form-input"
-                  onChange={handleChange}
+                  className={`form-input ${selectedField === "binary" ? "selected" : ""}`}
+                  onChange={(e) => { handleChange(e); handleFieldSelect("binary"); }}
                   defaultValue=""
                 >
                   <option value="" disabled>Select Yes or No</option>
                   <option value="Yes">Yes</option>
                   <option value="No">No</option>
                 </select>
+              ) : questions[currentQuestionIndex].name === "gender" ? (
+                <select
+                  className={`form-input ${selectedField === "gender" ? "selected" : ""}`}
+                  onChange={(e) => { handleChange(e); handleFieldSelect("gender"); }}
+                  defaultValue=""
+                >
+                  <option value="" disabled>Select Gender</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
               ) : (
                 <input
-                  className="form-input"
+                  className={`form-input ${selectedField === questions[currentQuestionIndex].name ? "selected" : ""}`}
                   type={questions[currentQuestionIndex].type}
                   value={responses[questions[currentQuestionIndex].name] || ""}
-                  onChange={handleChange}
+                  onChange={(e) => { handleChange(e); handleFieldSelect(questions[currentQuestionIndex].name); }}
                 />
               )}
               <button className="next-button" onClick={handleNext}>
                 Next
               </button>
             </>
-          ) : (
-            <>
-              <h2>Select Your Occupation</h2>
-              <select className="occupation-select" onChange={handleOccupationChange} defaultValue="">
-                <option value="" disabled>
-                  Select an occupation
-                </option>
-                {occupations.map((occupation) => (
-                  <option key={occupation} value={occupation}>
-                    {occupation.replace("_", " ")}
-                  </option>
-                ))}
-              </select>
-              <button className="submit-button" onClick={handleSubmit}>
-                Submit
-              </button>
-            </>
-          )}
+          ) : null}
         </div>
       )}
     </div>

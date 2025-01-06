@@ -98,3 +98,8 @@ h2 {
     background-color: #f0f8ff;
     text-align: center;
 }
+
+.selected {
+    background-color: #d1e7dd;
+    border: 2px solid #0f5132;
+}

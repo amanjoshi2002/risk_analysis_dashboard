@@ -38,6 +38,13 @@ STOCKS_API_KEY = os.getenv("STOCKS_API_KEY")
 NEWS_API_URL = "https://newsapi.org/v2/everything"
 STOCKS_API_URL = "https://www.alphavantage.co/query"
 
+# Define credit score ranges for different agencies
+AGENCY_RANGES = {
+    "Experian": (0, 999),
+    "Equifax": (0, 1000),
+    "TransUnion": (0, 710)
+}
+
 @app.route('/search/<input_value>', methods=['GET'])
 def search(input_value):
     """
@@ -66,8 +73,21 @@ def search(input_value):
         if not news:
             return jsonify({"error": "News articles not found"}), 404
 
-        # Analyze the historical data and news for investment suggestion
-        suggestion, summary = analyze_investment(historical_data, current_price, news)
+        # Use Gemini to generate an investment suggestion and summary
+        prompt = (
+            f"The stock market data for {stock_symbol} shows a current price of {current_price} and a 5-year trend of historical prices. "
+            f"The historical prices are: {[(entry['date'], entry['price']) for entry in historical_data]}. "
+            f"The news headlines related to this stock are: {[article['title'] for article in news]}. "
+            f"Provide a detailed investment suggestion and a concise summary in Markdown format with clear subheadings and bullet points."
+        )
+        logging.info("Sending prompt to Gemini API...")
+        response = model.generate_content(prompt)
+
+        # Ensure response text is available
+        gemini_summary = response.text if response else "No summary available."
+
+        # Log the response for debugging
+        logging.info(f"Gemini API response: {gemini_summary}")
 
         # Return results for API response
         return jsonify({
@@ -76,21 +96,48 @@ def search(input_value):
             "current_price": current_price,
             "historical_data": historical_data,
             "news": news,
-            "suggestion": suggestion,
-            "summary": summary
+            "gemini_summary": gemini_summary
         })
 
     except Exception as e:
+        logging.error(f"Error in /search endpoint: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
 
 @app.route('/predict', methods=['POST'])
 def predict():
     try:
         input_data = request.json  # Get JSON data from the request
+
+        # Validate input data
+        if not input_data:
+            return jsonify({"error": "Input data is required."}), 400
+
+        agency = input_data.get("agency")
+        credit_score = input_data.get("credit_score")
+
+        # Validate agency
+        if not agency or agency not in AGENCY_RANGES:
+            return jsonify({"error": f"Invalid agency. Choose one of {list(AGENCY_RANGES.keys())}"}), 400
+
+        # Validate credit score
+        if credit_score is None:
+            return jsonify({"error": "Credit score is required."}), 400
+
+        min_score, max_score = AGENCY_RANGES[agency]
+        if not (min_score <= credit_score <= max_score):
+            return jsonify({"error": f"Invalid credit score for {agency}. Must be between {min_score} and {max_score}."}), 400
+
+        # Standardize the credit score to a 0–1 scale
+        standardized_score = (credit_score - min_score) / (max_score - min_score)
+        input_data["standardized_score"] = standardized_score  # Add the standardized score to the input data
+
+        # Convert input data into a DataFrame
         sample_input = pd.DataFrame([input_data], columns=feature_names)
-        sample_input.fillna(0, inplace=True)
+        sample_input.fillna(0, inplace=True)  # Fill any missing values with 0
         sample_input_scaled = scaler.transform(sample_input)
 
+        # Generate predictions from all models
         predictions = {
             "Logistic Regression": int(logreg.predict(sample_input_scaled)[0]),
             "Decision Tree": int(tree_model.predict(sample_input_scaled)[0]),
@@ -100,16 +147,24 @@ def predict():
             "KNN": int(knn.predict(sample_input_scaled)[0])
         }
 
+        # Calculate the average score and categorize risk
         avg_score = sum(predictions.values()) / len(predictions)
         risk_category = "Low Risk" if avg_score <= 0.33 else "Medium Risk" if avg_score <= 0.66 else "High Risk"
 
-        # Use Gemini to generate a summary
+        # Use Gemini to generate a well-structured summary
         prompt = (
             f"The credit risk is {risk_category} based on an average prediction score of {avg_score:.2f}."
-            f" Provide detailed advice in bullet points for improving financial stability and reducing risks."
+            f" Provide detailed advice in Markdown format with clear subheadings and bullet points for improving financial stability "
+            f"and reducing risks, taking into account the credit score provided by {agency}."
         )
+        logging.info("Sending credit prompt to Gemini API...")
         response = model.generate_content(prompt)
-        summary = response.text
+
+        # Ensure response text is available
+        summary = response.text if response else "No advice available."
+
+        # Log the response for debugging
+        logging.info(f"Gemini API response for credit: {summary}")
 
         return jsonify({
             "predictions": predictions,
@@ -119,8 +174,10 @@ def predict():
         })
 
     except Exception as e:
-        logging.error(f"Error: {str(e)}")
+        logging.error(f"Error in /predict endpoint: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
+
 
 # Helper functions for backend.py functionality
 def is_symbol(input_value: str) -> bool:
@@ -215,35 +272,5 @@ def get_news(query: str):
     ]
     return news_data
 
-def analyze_investment(historical_data, current_price, news):
-    """
-    Analyze stock trends and news sentiment to provide an investment suggestion and a summary.
-    """
-    # Analyze historical data (growth trend)
-    prices = [entry["price"] for entry in historical_data]
-    growth_rate = (prices[-1] - prices[0]) / prices[0] * 100
-
-    # Simple analysis logic
-    if growth_rate > 20 and len(news) >= 3:
-        suggestion = "Invest"
-        summary = (
-            f"The stock has shown a strong growth rate of {growth_rate:.2f}% over the past 5 years, "
-            f"and recent news sentiment is predominantly positive. This indicates good potential for investment."
-        )
-    elif growth_rate > 0:
-        suggestion = "Hold"
-        summary = (
-            f"The stock has grown by {growth_rate:.2f}% over the past 5 years. However, mixed or neutral news sentiment "
-            f"suggests that it may be better to wait before making a decision."
-        )
-    else:
-        suggestion = "Avoid"
-        summary = (
-            f"The stock has declined by {growth_rate:.2f}% over the past 5 years, and recent news sentiment is not "
-            f"favorable. Investing in this stock may carry significant risk."
-        )
-
-    return suggestion, summary
-
 if __name__ == '__main__':
-    app.run(debug=True) 
+    app.run(debug=True)
