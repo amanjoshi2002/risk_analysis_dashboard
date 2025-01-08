@@ -4,6 +4,13 @@ import requests
 import joblib
 import pandas as pd
 import google.generativeai as genai
+import base64
+import matplotlib
+matplotlib.use('Agg')  # Use the Agg backend for non-interactive plotting
+import matplotlib.pyplot as plt
+import io
+
+
 import logging
 import os
 from dotenv import load_dotenv
@@ -271,6 +278,157 @@ def get_news(query: str):
         for article in articles
     ]
     return news_data
+
+# ... existing imports ...
+
+def validate_columns(df, required_columns):
+    """Check if required columns exist in the dataframe."""
+    missing_columns = [col for col in required_columns if col not in df.columns]
+    return missing_columns
+
+def convert_to_serializable(data):
+    """Convert pandas/numpy data types to native Python types."""
+    if isinstance(data, (pd.Series, pd.DataFrame)):
+        return data.to_dict()
+    if isinstance(data, (pd.Timestamp, pd.Timedelta)):
+        return str(data)
+    if isinstance(data, (int, float, str, bool, list, dict)):
+        return data
+    if hasattr(data, "item"):  # Handle numpy.int64, numpy.float64, etc.
+        return data.item()
+    return data
+
+def generate_historical_chart(df):
+    """Generate a line chart for historical closing prices and return it as base64 string."""
+    plt.figure(figsize=(10, 6))
+    plt.plot(pd.to_datetime(df['Date']), df['Close'], color='blue', linestyle='-', marker='o', markersize=2)
+    plt.title("Historical Closing Prices")
+    plt.xlabel("Date")
+    plt.ylabel("Closing Price (USD)")
+    plt.xticks(rotation=45)
+    plt.grid(True)
+    plt.tight_layout()
+
+    buffer = io.BytesIO()
+    plt.savefig(buffer, format='png')
+    buffer.seek(0)
+    base64_image = base64.b64encode(buffer.read()).decode('utf-8')
+    buffer.close()
+    plt.close()
+    return base64_image
+
+def process_historical_data(file):
+    try:
+        df = pd.read_csv(file)
+        required_columns = ['Date', 'Close']
+        missing_columns = validate_columns(df, required_columns)
+
+        if missing_columns:
+            return {"error": f"Missing columns in historical data: {missing_columns}"}
+
+        chart = generate_historical_chart(df)
+        explanation = (
+            "This chart displays the historical closing prices over time. "
+            "It helps visualize trends, identify peaks and troughs, and assess market behavior."
+        )
+
+        return {
+            "chart": chart,
+            "explanation": explanation,
+        }
+
+    except Exception as e:
+        return {"error": f"Error processing historical data: {e}"}
+
+def summarize_with_gemini(data):
+    """Use Gemini API to summarize the financial data."""
+    try:
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        summary_prompt = (
+            "Summarize the following financial data with a focus on liquidity, cash flow, "
+            "and other key financial metrics:\n" + str(data)
+        )
+        response = model.generate_content(summary_prompt)
+        return response.text
+    except Exception as e:
+        return f"Error summarizing with Gemini: {e}"
+
+@app.route('/upload', methods=['POST'])
+def upload_files():
+    try:
+        # Files uploaded by the user
+        cash_flow_file = request.files.get("cash_flow")
+        historical_file = request.files.get("historical")
+        financials_file = request.files.get("financials")
+        balance_sheet_file = request.files.get("balance_sheet")
+
+        # Initialize results
+        results = {
+            "liquidity_analysis": {},
+            "balance_sheet": {},
+            "cash_flow": {},
+            "financials_data": {},
+            "historical_chart": {},
+        }
+
+        # Process balance sheet data
+        if balance_sheet_file:
+            df = pd.read_csv(balance_sheet_file)
+            results["balance_sheet"] = {
+                "total_assets": convert_to_serializable(df['Net Tangible Assets'].iloc[0]),
+                "total_liabilities": convert_to_serializable(df['Total Debt'].iloc[0]),
+                "current_assets": convert_to_serializable(df['Cash And Cash Equivalents'].iloc[0]),
+                "current_liabilities": convert_to_serializable(-df['Working Capital'].iloc[0]),
+            }
+
+            results["liquidity_analysis"] = {
+                "net_debt": results["balance_sheet"]["total_liabilities"] - results["balance_sheet"]["current_assets"],
+                "current_working_capital": results["balance_sheet"]["current_assets"] + results["balance_sheet"]["current_liabilities"],
+                "quick_ratio": (
+                    results["balance_sheet"]["current_assets"] / results["balance_sheet"]["current_liabilities"]
+                    if results["balance_sheet"]["current_liabilities"] > 0
+                    else float('inf')
+                ),
+                "cash_ratio": (
+                    results["balance_sheet"]["current_assets"] / results["balance_sheet"]["total_liabilities"]
+                    if results["balance_sheet"]["total_liabilities"] > 0
+                    else float('inf')
+                ),
+            }
+
+        # Process cash flow data
+        if cash_flow_file:
+            df = pd.read_csv(cash_flow_file)
+            results["cash_flow"] = {
+                "insights": {
+                    "free_cash_flow": convert_to_serializable(df['Free Cash Flow'].sum()),
+                }
+            }
+
+        # Process financials data
+        if financials_file:
+            df = pd.read_csv(financials_file)
+            results["financials_data"] = {
+                "insights": {
+                    "gross_profit": convert_to_serializable(df['Gross Profit'].sum()),
+                    "operating_income": convert_to_serializable(df['Operating Income'].sum()),
+                }
+            }
+
+        # Process historical data
+        if historical_file:
+            results["historical_chart"] = process_historical_data(historical_file)
+
+        # Generate summary using Gemini
+        summary = summarize_with_gemini(results)
+        results["summary"] = summary
+
+        return jsonify(results)
+
+    except Exception as e:
+        return jsonify({"error": f"Error in upload_files: {e}"}), 500
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)

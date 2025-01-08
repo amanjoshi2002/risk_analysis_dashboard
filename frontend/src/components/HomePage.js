@@ -7,6 +7,8 @@ const HomePage = () => {
             window.location.href = '/market';
         } else if (riskType === 'credit') {
             window.location.href = '/credit';
+        } else if (riskType === 'liquidity') {
+            window.location.href = '/liquidity';
         } else {
             alert(`${riskType.charAt(0).toUpperCase() + riskType.slice(1)} risk analysis coming soon!`);
         }
