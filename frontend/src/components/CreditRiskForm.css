@@ -64,3 +64,51 @@ input[type="number"]::-webkit-inner-spin-button {
 input[type="number"] {
     -moz-appearance: textfield; /* Firefox */
 }
+
+.predictions-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); /* 3 columns */
+    gap: 15px; /* Space between grid items */
+    margin-top: 20px; /* Space above the grid */
+}
+
+.prediction-card {
+    padding: 15px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: #f0f8ff;
+    text-align: center;
+    transition: transform 0.2s; /* Smooth hover effect */
+}
+
+.prediction-card:hover {
+    transform: scale(1.05); /* Slightly enlarge on hover */
+}
+
+.prediction-title {
+    font-weight: bold; /* Bold title */
+    margin-bottom: 10px; /* Space below title */
+}
+
+.prediction-value {
+    font-size: 1.5em; /* Larger font for value */
+    color: #4CAF50; /* Green color for positive predictions */
+}
+
+.average-score-window, .risk-category-window {
+    margin: 20px 0; /* Space above and below */
+    padding: 15px; /* Padding inside the container */
+    border: 1px solid #ccc; /* Border for the container */
+    border-radius: 5px; /* Rounded corners */
+    background-color: #e7f3fe; /* Background color */
+    text-align: center; /* Center text */
+}
+
+.average-score-window h3, .risk-category-window h3 {
+    margin-bottom: 10px; /* Space below the heading */
+}
+
+.average-score-window div, .risk-category-window div {
+    font-size: 1.5em; /* Larger font for values */
+    margin-top: 5px; /* Space above the value */
+}

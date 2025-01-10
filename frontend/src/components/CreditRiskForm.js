@@ -87,16 +87,13 @@ function CreditRiskForm() {
         <div className="result">
           <h2>Prediction Results</h2>
           <div className="predictions-grid">
-            <h3>Predictions</h3>
-            <div className="predictions-container">
-              {result.predictions &&
-                Object.entries(result.predictions).map(([model, value]) => (
-                  <div className="prediction-card" key={model}>
-                    <h4>{model.replace("_", " ")}</h4>
-                    <p>{value}</p>
-                  </div>
-                ))}
-            </div>
+            {result.predictions &&
+              Object.entries(result.predictions).map(([model, value]) => (
+                <div className="prediction-card" key={model}>
+                  <div className="prediction-title">{model.replace("_", " ")}</div>
+                  <div className="prediction-value">{value}</div>
+                </div>
+              ))}
           </div>
           <div className="average-score-window">
             <h3>Average Score</h3>
