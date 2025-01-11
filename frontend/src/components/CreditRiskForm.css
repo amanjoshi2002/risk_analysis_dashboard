@@ -112,3 +112,17 @@ input[type="number"] {
     font-size: 1.5em; /* Larger font for values */
     margin-top: 5px; /* Space above the value */
 }
+
+.required {
+    color: red;
+  }
+  
+  .error {
+    border-color: red !important;
+  }
+  
+  .error-message {
+    color: red;
+    font-size: 0.875em;
+    margin-top: 5px;
+  }
