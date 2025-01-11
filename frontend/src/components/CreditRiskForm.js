@@ -132,7 +132,7 @@ function CreditRiskForm() {
                 <select
                   id={q.name}
                   className={`form-input ${errors[q.name] ? "error" : ""}`}
-                  value={responses[q.name] || ""}
+                  value={responses[q.name] === 1 ? "Yes" : responses[q.name] === 0 ? "No" : ""} // Map to "Yes" or "No"
                   onChange={(e) => handleChange(e, q.name)}
                 >
                   <option value="" disabled>
@@ -145,7 +145,7 @@ function CreditRiskForm() {
                 <select
                   id={q.name}
                   className={`form-input ${errors[q.name] ? "error" : ""}`}
-                  value={responses[q.name] || ""}
+                  value={responses[q.name] === 1 ? "Male" : responses[q.name] === 0 ? "Female" : ""} // Map to "Male" or "Female"
                   onChange={(e) => handleChange(e, q.name)}
                 >
                   <option value="" disabled>
