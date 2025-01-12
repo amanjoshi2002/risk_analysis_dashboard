@@ -61,6 +61,12 @@ function LiquidityManagement() {
         <button type="submit" style={buttonStyle}>
           Upload
         </button>
+        {/* Link to dataset */}
+      <div style={{ marginTop: "20px" }}>
+        <p>
+          Looking for data? <a href="https://www.kaggle.com/datasets/yahqaskaluso/s-and-p500-financial-data-2013-2023" target="_blank" rel="noopener noreferrer">Get data from here</a>.
+        </p>
+      </div>
       </form>
 
       {error && <div style={{ marginTop: "20px", color: "red" }}>{error}</div>}
