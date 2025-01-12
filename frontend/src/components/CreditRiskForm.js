@@ -7,17 +7,43 @@ function CreditRiskForm() {
     { name: "agency", question: "Which credit agency are you using?", type: "agency" },
     { name: "credit_score", question: "What is your credit score?", type: "number" },
     { name: "age", question: "What is your age?", type: "number" },
-    { name: "owns_house", question: "Do you own a house? ", type: "binary" },
-    { name: "owns_car", question: "Do you own a car? ", type: "binary" },
+    { name: "owns_house", question: "Do you own a house?", type: "binary" },
+    { name: "owns_car", question: "Do you own a car?", type: "binary" },
     { name: "net_yearly_income", question: "What is your net yearly income?", type: "number" },
     { name: "credit_limit", question: "What is your total credit limit?", type: "number" },
     { name: "credit_limit_used", question: "What percentage of your credit limit have you used?", type: "number" },
     { name: "default_in_last_6months", question: "How many times have you defaulted in the last 6 months?", type: "number" },
     { name: "gender", question: "What is your gender?", type: "binary" },
-    { name: "migrant_worker", question: "Are you a migrant worker? ", type: "binary" },
+    { name: "migrant_worker", question: "Are you a migrant worker?", type: "binary" },
     { name: "no_of_children", question: "How many children do you have?", type: "number" },
     { name: "no_of_days_employed", question: "How many days have you been employed?", type: "number" },
+    { name: "occupation", question: "What is your occupation?", type: "occupation" },
   ];
+
+  const occupations = [
+    "Accountants",
+    "Cleaning_staff",
+    "Cooking_staff",
+    "Drivers",
+    "HR_staff",
+    "IT_staff",
+    "Laborers",
+    "Managers",
+    "Medicine_staff",
+    "Private_service_staff",
+    "Sales_staff",
+    "Secretaries",
+    "Security_staff",
+    "Waiters_barmen_staff",
+    "Bussiness",
+    "Self Employed"
+  ];
+
+  const agencyScoreRanges = {
+    Experian: { min: 0, max: 999 },
+    Equifax: { min: 0, max: 1000 },
+    TransUnion: { min: 0, max: 710 },
+  };
 
   const [responses, setResponses] = useState({});
   const [result, setResult] = useState(null);
@@ -32,8 +58,17 @@ function CreditRiskForm() {
     } else if (questions.find((q) => q.name === name)?.type === "binary") {
       numericValue = value === "Yes" ? 1 : value === "No" ? 0 : null;
     } else if (questions.find((q) => q.name === name)?.type === "number") {
-      // Allow 0 as a valid input
       numericValue = value === "" ? "" : parseFloat(value);
+
+      // Validate credit score if applicable
+      if (name === "credit_score" && responses.agency) {
+        const selectedAgency = responses.agency;
+        const range = agencyScoreRanges[selectedAgency];
+        if (numericValue < range.min || numericValue > range.max) {
+          setErrors({ ...errors, credit_score: `Credit score must be between ${range.min} and ${range.max} for ${selectedAgency}.` });
+          return; // Prevent setting invalid value
+        }
+      }
     } else {
       numericValue = value;
     }
@@ -115,24 +150,31 @@ function CreditRiskForm() {
                 {q.question} <span className="required">*</span>
               </label>
               {q.type === "agency" ? (
-                <select
-                  id={q.name}
-                  className={`form-input ${errors[q.name] ? "error" : ""}`}
-                  value={responses[q.name] || ""}
-                  onChange={(e) => handleChange(e, q.name)}
-                >
-                  <option value="" disabled>
-                    Select a credit agency
-                  </option>
-                  <option value="Experian">Experian</option>
-                  <option value="Equifax">Equifax</option>
-                  <option value="TransUnion">TransUnion</option>
-                </select>
+                <>
+                  <select
+                    id={q.name}
+                    className={`form-input ${errors[q.name] ? "error" : ""}`}
+                    value={responses[q.name] || ""}
+                    onChange={(e) => handleChange(e, q.name)}
+                  >
+                    <option value="" disabled>
+                      Select a credit agency
+                    </option>
+                    <option value="Experian">Experian</option>
+                    <option value="Equifax">Equifax</option>
+                    <option value="TransUnion">TransUnion</option>
+                  </select>
+                  <div className="agency-ranges">
+                    <p>Experian: 0-999</p>
+                    <p>Equifax: 0-1000</p>
+                    <p>TransUnion: 0-710</p>
+                  </div>
+                </>
               ) : q.type === "binary" && q.name !== "gender" ? (
                 <select
                   id={q.name}
                   className={`form-input ${errors[q.name] ? "error" : ""}`}
-                  value={responses[q.name] === 1 ? "Yes" : responses[q.name] === 0 ? "No" : ""} // Map to "Yes" or "No"
+                  value={responses[q.name] === 1 ? "Yes" : responses[q.name] === 0 ? "No" : ""}
                   onChange={(e) => handleChange(e, q.name)}
                 >
                   <option value="" disabled>
@@ -145,7 +187,7 @@ function CreditRiskForm() {
                 <select
                   id={q.name}
                   className={`form-input ${errors[q.name] ? "error" : ""}`}
-                  value={responses[q.name] === 1 ? "Male" : responses[q.name] === 0 ? "Female" : ""} // Map to "Male" or "Female"
+                  value={responses[q.name] === 1 ? "Male" : responses[q.name] === 0 ? "Female" : ""}
                   onChange={(e) => handleChange(e, q.name)}
                 >
                   <option value="" disabled>
@@ -154,12 +196,28 @@ function CreditRiskForm() {
                   <option value="Male">Male</option>
                   <option value="Female">Female</option>
                 </select>
+              ) : q.name === "occupation" ? (
+                <select
+                  id={q.name}
+                  className={`form-input ${errors[q.name] ? "error" : ""}`}
+                  value={responses[q.name] || ""}
+                  onChange={(e) => handleChange(e, q.name)}
+                >
+                  <option value="" disabled>
+                    Select your occupation
+                  </option>
+                  {occupations.map((occupation, idx) => (
+                    <option key={idx} value={occupation}>
+                      {occupation}
+                    </option>
+                  ))}
+                </select>
               ) : (
                 <input
                   id={q.name}
                   className={`form-input ${errors[q.name] ? "error" : ""}`}
                   type={q.type}
-                  value={responses[q.name] === 0 ? 0 : responses[q.name] || ""} // Explicitly handle 0
+                  value={responses[q.name] === 0 ? 0 : responses[q.name] || ""}
                   onChange={(e) => handleChange(e, q.name)}
                 />
               )}
