@@ -9,6 +9,7 @@ import matplotlib
 matplotlib.use('Agg')  # Use the Agg backend for non-interactive plotting
 import matplotlib.pyplot as plt
 import io
+from bs4 import BeautifulSoup
 
 
 import logging
@@ -52,20 +53,62 @@ AGENCY_RANGES = {
     "TransUnion": (0, 710)
 }
 
+def get_company_suggestions(input_value):
+    """
+    Fetch company name suggestions based on the input from "https://stockanalysis.com/stocks/".
+    """
+    try:
+        response = requests.get("https://stockanalysis.com/stocks/")
+        if response.status_code != 200:
+            raise Exception("Failed to fetch company list from stockanalysis.com")
+
+        # Parse the response to extract company names and symbols
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        companies = []
+        for link in soup.select('a[href^="/stocks/"]'):
+            company_name = link.text.strip()
+            symbol = link.get('href').split('/')[-1].upper()  # Extract symbol from URL
+
+            # Filter out irrelevant results (e.g., generic terms like "Comparison Tool")
+            if not symbol.isalpha() or len(symbol) > 5:  # Filter non-symbols and long text
+                continue
+
+            if input_value.lower() in company_name.lower() or input_value.lower() in symbol.lower():
+                companies.append({"symbol": symbol, "name": company_name})
+
+        return companies[:10]  # Return up to 10 suggestions
+
+    except Exception as e:
+        logging.error(f"Error fetching company suggestions: {e}")
+        return []
+
+
+
+
 @app.route('/search/<input_value>', methods=['GET'])
 def search(input_value):
     """
     Fetch news articles, current stock price, historical stock data, and provide an investment suggestion.
-    Handle both company symbols and company names.
+    Handle both company symbols and company names. Suggest company names in a dropdown if input is not a valid symbol.
     """
     try:
-        # Convert company name to stock symbol if necessary
-        if not is_symbol(input_value):
+        # Fetch matching company names for the input_value
+        company_suggestions = get_company_suggestions(input_value)
+
+        # If the input is a valid stock symbol, proceed directly
+        if is_symbol(input_value):
+            stock_symbol = input_value
+        else:
+            # If there are suggestions, return them to the user
+            if company_suggestions:
+                return jsonify({"suggestions": company_suggestions})
+
+            # Attempt to find a stock symbol based on the input name
             stock_symbol = get_symbol_from_name(input_value)
             if not stock_symbol:
                 return jsonify({"error": "Stock symbol not found for the given company name"}), 404
-        else:
-            stock_symbol = input_value
 
         # Fetch stock data
         stock_data = get_stock_data(stock_symbol)
@@ -85,7 +128,7 @@ def search(input_value):
             f"The stock market data for {stock_symbol} shows a current price of {current_price} and a 5-year trend of historical prices. "
             f"The historical prices are: {[(entry['date'], entry['price']) for entry in historical_data]}. "
             f"The news headlines related to this stock are: {[article['title'] for article in news]}. "
-            f"Provide a detailed investment suggestion and a concise summary in Markdown format with clear subheadings and bullet points."
+            f"Provide a detailed investment suggestion and a concise and in-depth summary, ignore the covid period when the market was down, consider the years before and after the covid period but do not use the term covid19 in repetition, in Markdown format with clear subheadings and bullet points."
         )
         logging.info("Sending prompt to Gemini API...")
         response = model.generate_content(prompt)
@@ -109,6 +152,7 @@ def search(input_value):
     except Exception as e:
         logging.error(f"Error in /search endpoint: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
 
 
 @app.route('/predict', methods=['POST'])
@@ -161,7 +205,7 @@ def predict():
         # Use Gemini to generate a well-structured summary
         prompt = (
             f"The credit risk is {risk_category} based on an average prediction score of {avg_score:.2f}."
-            f" Provide detailed advice in Markdown format with clear subheadings and bullet points for improving financial stability "
+            f" Provide a detailed credit suggestion and a concise and in depth summary advice in Markdown format with clear subheadings and bullet points for improving financial stability, make the summary UK focused but do not mention UK in output"
             f"and reducing risks, taking into account the credit score provided by {agency}."
         )
         logging.info("Sending credit prompt to Gemini API...")
