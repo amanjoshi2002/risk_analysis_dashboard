@@ -60,6 +60,12 @@ function CreditRiskForm() {
     } else if (questions.find((q) => q.name === name)?.type === "number") {
       numericValue = value === "" ? "" : parseFloat(value);
 
+      // Prevent negative values
+      if (numericValue < 0) {
+        setErrors({ ...errors, [name]: "Value cannot be negative." });
+        return; // Prevent setting invalid value
+      }
+
       // Validate credit score if applicable
       if (name === "credit_score" && responses.agency) {
         const selectedAgency = responses.agency;
